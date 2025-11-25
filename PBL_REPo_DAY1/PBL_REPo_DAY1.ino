@@ -1,9 +1,12 @@
+// Communication libraries
 #include <SPI.h>
 #include <Wire.h>
 
+// OLED display
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 
+// BME280 Sensor
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BME280.h>
 
@@ -39,6 +42,7 @@ void setup() {
 
  }
 
+  // Initialize sensor
   unsigned status;
     
   // default settings
