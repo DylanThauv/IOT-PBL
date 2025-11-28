@@ -1,104 +1,246 @@
-// Communication libraries
+//  Includes & Libraries 
 #include <SPI.h>
 #include <Wire.h>
+#include <WiFi.h>
+#include <WebServer.h>
+#include <FS.h>
+#include <SPIFFS.h>
 
-// OLED display
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
-
-// BME280 Sensor
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BME280.h>
 
-#define SCREEN_WIDTH 128 // OLED display width, in pixels
-#define SCREEN_HEIGHT 64 // OLED display height, in pixels
+//  Pin Definitions
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
 
-// OLED pins
 #define OLED_MOSI   23
-#define OLED_CLK   18
-#define OLED_DC    16
-#define OLED_CS    5
-#define OLED_RESET 19
+#define OLED_CLK    18
+#define OLED_DC     16
+#define OLED_CS     5
+#define OLED_RESET  19
 
-// BME280
 #define SEALEVELPRESSURE_HPA (1013.25)
 
+// RGB LED pins
+#define LED_R 25
+#define LED_G 26
+#define LED_B 27
+
+//  Global Objects & Variables
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT,
   OLED_MOSI, OLED_CLK, OLED_DC, OLED_RESET, OLED_CS);
 
 Adafruit_BME280 bme;
 
+// Wi-Fi settings
+const String ssid = "ESP32_RoomSensor_Boris_Dylan";
+const String password = "12345678";
+
+WebServer server(80);
+
+float temperatureC = 0;
+float humidity = 0;
+float pressureHPA = 0;
+
+unsigned long lastLogTime = 0;
+unsigned long logInterval = 5000; // log to CSV every 5 sec
+
+//  Function Declaration        
+void initOLED();
+void initBME();
+void initLED();
+void initWiFi();
+void initSPIFFS();
+
+void readSensorValues();
+void updateDisplay();
+void printToSerial();
+void updateLEDAlerts();
+void logToCSV();
+
+void enterDeepSleep();
+
+void handleWebRoot();
+String generateHTML();
+
+//  SETUP
 void setup() {
-  // put your setup code here, to run once:
-  Serial.begin(9600);
+  Serial.begin(115200);
+  delay(500);
 
-  // initialize the OLED object
+  initOLED();
+  initBME();
+  initLED();
+  initSPIFFS();
+  initWiFi();
 
- if(!display.begin(SSD1306_SWITCHCAPVCC)) {
-
-   Serial.println(F("SSD1306 allocation failed"));
-
-   for(;;); // Don't proceed, loop forever
-
- }
-
-  // Initialize sensor
-  unsigned status;
-    
-  // default settings
-  // status = bme.begin();  
-  // You can also pass in a Wire library object like &Wire2
-  status = bme.begin(0x76);
-  if (!status) {
-      Serial.println("Could not find a valid BME280 sensor, check wiring, address, sensor ID!");
-      Serial.print("SensorID was: 0x"); Serial.println(bme.sensorID(),16);
-      Serial.print("        ID of 0xFF probably means a bad address, a BMP 180 or BMP 085\n");
-      Serial.print("   ID of 0x56-0x58 represents a BMP 280,\n");
-      Serial.print("        ID of 0x60 represents a BME 280.\n");
-      Serial.print("        ID of 0x61 represents a BME 680.\n");
-      while (1) delay(10);
-  }
- display.display();
- delay(2000);
+  // Web handlers
+  server.on("/", handleWebRoot);
+  server.begin();
 }
 
+//  LOOP
 void loop() {
-  // put your main code here, to run repeatedly:
-  display.clearDisplay();
- 
-  // Display Text
- 
-  display.setTextSize(1);
- 
-  display.setTextColor(WHITE);
- 
-  display.setCursor(0, 28);
- 
-  display.println("Hello world!");
- 
-  display.display();
-  
-  printValues();
+  server.handleClient();        // handle web server
+
+  readSensorValues();           // get sensor values
+  updateDisplay();              // update OLED
+  updateLEDAlerts();            // update RGB LED alerts
+  printToSerial();              // serial monitor
+
+  // CSV logging
+  if (millis() - lastLogTime >  logInterval) {
+    logToCSV();
+    lastLogTime = millis();
+  }
+
   delay(2000);
 }
+//  MODULE: OLED Initialization
+void initOLED() {
+  if (!display.begin(SSD1306_SWITCHCAPVCC)) {
+    Serial.println("OLED FAILED");
+  } 
 
-void printValues() {
-    Serial.print("Temperature = ");
-    Serial.print(bme.readTemperature());
-    Serial.println(" °C");
+  display.clearDisplay();
+  display.setTextColor(WHITE);
+  display.setCursor(0, 0);
+  display.println("OLED Ready");
+  display.display();
+  delay(1000);
+}
 
-    Serial.print("Pressure = ");
+//  MODULE: BME280 Initialization
+void initBME() {
+  if (!bme.begin(0x76)) {
+    Serial.println("BME280 ERROR");
+  }
 
-    Serial.print(bme.readPressure() / 100.0F);
-    Serial.println(" hPa");
+  display.clearDisplay();
+  display.setCursor(0, 0);
+  display.println("BME280 Ready");
+  display.display();
+  delay(1000);
+}
 
-    Serial.print("Approx. Altitude = ");
-    Serial.print(bme.readAltitude(SEALEVELPRESSURE_HPA));
-    Serial.println(" m");
+//  MODULE: RGB LED Initialization
+void initLED() {
+  pinMode(LED_R, OUTPUT);
+  pinMode(LED_G, OUTPUT);
+  pinMode(LED_B, OUTPUT);
+}
 
-    Serial.print("Humidity = ");
-    Serial.print(bme.readHumidity());
-    Serial.println(" %");
+//  MODULE: Wi-Fi Access Point
+void initWiFi() {
+  WiFi.softAP(ssid, password);
+  Serial.print("AP IP: ");
+  Serial.println(WiFi.softAPIP());
+}
+                
+//  MODULE: SPIFFS Initialization                   
+void initSPIFFS() {
+  if (!SPIFFS.begin(true)) {
+    Serial.println("SPIFFS Mount Failed");
+  }
+  Serial.println("SPIFFS Ready");
+}
+              
+//  MODULE: Sensor Reading                   
+void readSensorValues() {
+  temperatureC = bme.readTemperature();
+  humidity = bme.readHumidity();
+  pressureHPA  = bme.readPressure() / 100.0F;
+}
 
-    Serial.println();
+//  MODULE: OLED Update
+void updateDisplay() {
+  display.clearDisplay();
+  display.setCursor(0, 0);
+
+  display.println(" Indoor Climate ");
+  display.println("--------------------");
+
+  display.print("Temp: ");
+  display.print(temperatureC);
+  display.println(" C");
+
+  display.print("Hum : ");
+  display.print(humidity);
+  display.println(" %");
+
+  display.print("Pres: ");
+  display.print(pressureHPA);
+  display.println(" hPa");
+
+  display.display();
+}
+
+//  MODULE: RGB LED Alerts
+
+void updateLEDAlerts() {
+  // normal: green
+  int r = 0, g = 255, b = 0;
+
+  if (temperatureC > 28) {         // too hot
+    r = 255; g = 0; b = 0;
+  }
+  else if (humidity > 70) {        // too humid
+    r = 128; g = 0; b = 128;
+  }
+  else if (pressureHPA < 1000) {   // low pressure
+    r = 255; g = 255; b = 0;
+  }
+
+  analogWrite(LED_R, r);
+  analogWrite(LED_G, g);
+  analogWrite(LED_B, b);
+}
+//  MODULE: Serial Debug Output
+void printToSerial() {
+  Serial.print("Temp: "); Serial.println(temperatureC);
+  Serial.print("Hum : "); Serial.println(humidity);
+  Serial.print("Pres: "); Serial.println(pressureHPA);
+  Serial.println("-----------------------");
+}
+
+//  MODULE: CSV Logging
+void logToCSV() {
+  File file = SPIFFS.open("/data.csv", FILE_APPEND);
+  if (!file) return;
+
+  file.printf("%lu,%.2f,%.2f,%.2f\n", millis(), temperatureC, humidity, pressureHPA);
+  file.close();
+
+  Serial.println("Logged to CSV");
+}
+//  MODULE: Web Dashboard
+void handleWebRoot() {
+  server.send(200, "text/html", generateHTML());
+}
+
+String generateHTML() {
+  String page = "<html><head><meta http-equiv='refresh' content='3'/>";
+  page += "<style>body{font-family:Arial;background:#111;color:white;text-align:center;}";
+  page += "h1{color:#00FFAA;} table{margin:auto; font-size:22px;}</style></head>";
+  page += "<body><h1>ESP32 Room Sensor</h1>";
+  page += "<table>";
+  page += "<tr><td>Temperature:</td><td>" + String(temperatureC) + " C</td></tr>";
+  page += "<tr><td>Humidity:</td><td>" + String(humidity) + " %</td></tr>";
+  page += "<tr><td>Pressure:</td><td>" + String(pressureHPA) + " hPa</td></tr>";
+  page += "</table><br><p>Updated automatically every 3 seconds</p></body></html>";
+  return page;
+}
+//  MODULE: Deep Sleep (Optional Call)
+void enterDeepSleep() {
+  display.clearDisplay();
+  display.setCursor(0, 0);
+  display.println("Sleeping...");
+  display.display();
+
+  delay(1000);
+
+  esp_sleep_enable_timer_wakeup(30 * 1000000); // 30 sec
+  esp_deep_sleep_start();
 }
