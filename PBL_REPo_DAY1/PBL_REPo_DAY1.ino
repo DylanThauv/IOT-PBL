@@ -35,17 +35,17 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT,
 Adafruit_BME280 bme;
 
 // Wi-Fi settings
-const char* ssid   "ESP32_RoomSensor";
-const char* password   "12345678";
+const String ssid = "ESP32_RoomSensor_Boris_Dylan";
+const String password = "12345678";
 
 WebServer server(80);
 
-float temperatureC   0;
-float humidity   0;
-float pressureHPA   0;
+float temperatureC = 0;
+float humidity = 0;
+float pressureHPA = 0;
 
-unsigned long lastLogTime   0;
-unsigned long logInterval   5000; // log to CSV every 5 sec
+unsigned long lastLogTime = 0;
+unsigned long logInterval = 5000; // log to CSV every 5 sec
 
 //  Function Declaration        
 void initOLED();
@@ -93,7 +93,7 @@ void loop() {
   // CSV logging
   if (millis() - lastLogTime >  logInterval) {
     logToCSV();
-    lastLogTime   millis();
+    lastLogTime = millis();
   }
 
   delay(2000);
@@ -102,8 +102,7 @@ void loop() {
 void initOLED() {
   if (!display.begin(SSD1306_SWITCHCAPVCC)) {
     Serial.println("OLED FAILED");
-    while (1);
-  }
+  } 
 
   display.clearDisplay();
   display.setTextColor(WHITE);
@@ -117,7 +116,6 @@ void initOLED() {
 void initBME() {
   if (!bme.begin(0x76)) {
     Serial.println("BME280 ERROR");
-    while (1);
   }
 
   display.clearDisplay();
@@ -151,9 +149,9 @@ void initSPIFFS() {
               
 //  MODULE: Sensor Reading                   
 void readSensorValues() {
-  temperatureC   bme.readTemperature();
-  humidity       bme.readHumidity();
-  pressureHPA    bme.readPressure() / 100.0F;
+  temperatureC = bme.readTemperature();
+  humidity = bme.readHumidity();
+  pressureHPA  = bme.readPressure() / 100.0F;
 }
 
 //  MODULE: OLED Update
