@@ -17,9 +17,9 @@
 
 #define OLED_MOSI   23
 #define OLED_CLK    18
-#define OLED_DC     16
+#define OLED_DC     17
 #define OLED_CS     5
-#define OLED_RESET  19
+#define OLED_RESET  16
 
 #define SEALEVELPRESSURE_HPA (1013.25)
 
