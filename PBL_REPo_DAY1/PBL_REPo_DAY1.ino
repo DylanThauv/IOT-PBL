@@ -8,6 +8,8 @@
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BME280.h>
 
+#include <ArduinoJson.h>
+
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
 
@@ -63,6 +65,7 @@ void setup() {
 
   server.on("/", handleWebRoot);
   server.on("/data.json", handleJSON);
+  server.on("/sleep", enterDeepSleep);
   server.begin();
 }
 
@@ -174,12 +177,11 @@ String generateHTML() {
   page += "<tr><td>Pressure:</td><td>" + String(pressureHPA) + " hPa</td></tr>";
   page += "<tr><td>Timestamp:</td><td>" + String(currentTimestamp) + "</td></tr>";
   page += "</table>";
-  page += "<p>JSON API: /data.json</p>";
-  page += "</body></html>";
+  page += "</body>";
 
   page += "<form action=\"/sleep\" method=\"POST\">";
-  page += "<button style='padding:12px; font-size:18px;'>Enter Deep Sleep</button>";
-  page += "</form>";
+  page += "<button style='padding:12px; font-size:18px';'>Enter Deep Sleep</button>";
+  page += "</form></html>";
 
   return page;
 }
