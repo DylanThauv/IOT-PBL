@@ -50,9 +50,8 @@ void printToSerial();
 void updateLEDAlerts();
 
 void handleWebRoot();
-void handleJSON();
+void handleSensorData();
 String generateHTML();
-String generateJSON();
 
 void setup() {
   Serial.begin(115200);
@@ -64,7 +63,6 @@ void setup() {
   initWiFi();
 
   server.on("/", handleWebRoot);
-  server.on("/data.json", handleJSON);
   server.on("/sleep", enterDeepSleep);
   server.begin();
 }
@@ -156,16 +154,13 @@ void updateLEDAlerts() {
 }
 
 void printToSerial() {
-  Serial.println(generateJSON());
+  Serial.println(outputString());
 }
 
 void handleWebRoot() {
   server.send(200, "text/html", generateHTML());
 }
 
-void handleJSON() {
-  server.send(200, "application/json", generateJSON());
-}
 
 String generateHTML() {
   String page = "<html><head><meta http-equiv='refresh' content='3'/>";
@@ -186,14 +181,15 @@ String generateHTML() {
   return page;
 }
 
-String generateJSON() {
-  String json = "{";
-  json += "\"timestamp\":" + String(currentTimestamp) + ",";
-  json += "\"temperature\":" + String(temperatureC) + ",";
-  json += "\"humidity\":" + String(humidity) + ",";
-  json += "\"pressure\":" + String(pressureHPA);
-  json += "}";
-  return json;
+void handleSensorData(){
+  DynamicJsonDocument doc(128);
+  doc["temp"] = temperatureC;
+  doc["Humidity"] = humidity;
+  doc["Preassure"] = pressureHPA;
+
+ String outputString;
+  serializeJsonPretty(doc, outputString);
+    Serial.println(outputString);
 }
 
 void enterDeepSleep() {
@@ -208,4 +204,3 @@ void enterDeepSleep() {
   esp_sleep_enable_timer_wakeup(30 * 1000000ULL);
   esp_deep_sleep_start();
 }
-
