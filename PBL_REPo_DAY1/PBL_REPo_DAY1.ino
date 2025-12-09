@@ -73,7 +73,7 @@ void loop() {
   readSensorValues();
   updateDisplay();
   updateLEDAlerts();
-  printToSerial();
+  handleSensorData();
 
   delay(2000);
 }
@@ -144,18 +144,23 @@ void updateDisplay() {
 void updateLEDAlerts() {
   int r = 0, g = 255, b = 0;
 
-  if (temperatureC > 28) { r = 255; g = 0; b = 0; }
-  else if (humidity > 70) { r = 128; g = 0; b = 128; }
-  else if (pressureHPA < 1000) { r = 255; g = 255; b = 0; }
+  if (temperatureC > 28) { r = 255; g = 0; b = 0; display.println("TEMPERATURE TOO HIGH");} // red
+  if (humidity > 70) { r = 0; g = 0; b = 255; display.println("HUMIDITY TOO HIGH");} // blue
+  if (pressureHPA < 1000) { r = 0; g = 255; b = 255; display.println("PRESSURE TOO LOW");} // cyan
+  if (temperatureC > 28 && humidity > 70) {r = 255; g = 0; b = 255; display.println("TEMP AND HUM TOO HIGH");} // purple
+  if (temperatureC > 28 && pressureHPA < 1000) {r = 255; g = 255; b = 0; display.println("TEMPERATURE HIGH, PRESSURE LOW");} // yellow
+  if (humidity > 70 && pressureHPA < 1000) {r = 255; g = 255; b = 255; display.println("HUM HIGH, PRES HIGH");} // white
+  if (temperatureC > 28 && humidity > 70 && pressureHPA < 1000) {r = 0; g = 0; b = 0; display.println("OUT OF CONTROL");} // black, ur cooked anyway
 
   analogWrite(LED_R, r);
   analogWrite(LED_G, g);
   analogWrite(LED_B, b);
+  display.display();
 }
 
-void printToSerial() {
-  Serial.println(outputString());
-}
+// void printToSerial() {
+//   Serial.println(outputString());
+// }
 
 void handleWebRoot() {
   server.send(200, "text/html", generateHTML());
@@ -183,13 +188,14 @@ String generateHTML() {
 
 void handleSensorData(){
   DynamicJsonDocument doc(128);
-  doc["temp"] = temperatureC;
+  doc["Timestamp"] = currentTimestamp;
+  doc["Temperature"] = temperatureC;
   doc["Humidity"] = humidity;
-  doc["Preassure"] = pressureHPA;
+  doc["Pressure"] = pressureHPA;
 
- String outputString;
+  String outputString;
   serializeJsonPretty(doc, outputString);
-    Serial.println(outputString);
+  Serial.println(outputString);
 }
 
 void enterDeepSleep() {
