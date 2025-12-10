@@ -239,7 +239,10 @@ void handleSensorData(){
   String outputString;
   serializeJsonPretty(doc, outputString); // Make the JSON document printable on the serial monitor
   Serial.println(outputString);
-} // Reference: Lab 10 - ESP32 Smart Plant Monitoring System
+} // References: Lab 10 - ESP32 Smart Plant Monitoring System, 
+// https://arduinojson.org, https://randomnerdtutorials.com/decoding-and-encoding-json-with-arduino-or-esp8266/
+// https://www.programiz.com/html/form-action
+
 
 // Makes the ESP32 sleep for 30 seconds (the entire system stops working, including the web server)
 void enterDeepSleep() {
@@ -254,4 +257,4 @@ void enterDeepSleep() {
   // Built-in functions
   esp_sleep_enable_timer_wakeup(30 * 1000000ULL);
   esp_deep_sleep_start();
-}
+} // Reference: https://randomnerdtutorials.com/esp32-deep-sleep-arduino-ide-wake-up-sources/
